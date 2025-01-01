@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Treasure Hunt Quest</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f8ff;
+            text-align: center;
+        }
+        header {
+            background-color: #4682b4;
+            color: white;
+            padding: 20px;
+        }
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px;
+        }
+        .stats {
+            margin: 20px 0;
+            padding: 10px;
+            border: 2px solid #4682b4;
+            background: #e0f7fa;
+            border-radius: 8px;
+            width: 80%;
+            text-align: center;
+        }
+        .game-map {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            grid-gap: 5px;
+            width: 80%;
+            margin-top: 20px;
+        }
+        .tile {
+            width: 60px;
+            height: 60px;
+            background-color: #90ee90;
+            border: 1px solid #4682b4;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .tile img {
+            display: none;
+            width: 40px;
+            height: 40px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Treasure Hunt Quest</h1>
+        <p>Find treasures, avoid traps, and uncover hidden power-ups!</p>
+    </header>
+    <div class="game-container">
+        <div class="stats">
+            <p><strong>Score:</strong> <span id="score">0</span></p>
+            <p><strong>Treasures Found:</strong> <span id="treasures">0</span></p>
+            <p><strong>Traps Triggered:</strong> <span id="traps">0</span></p>
+        </div>
+        <div class="game-map" id="gameMap">
+            <!-- Tiles will be dynamically generated -->
+        </div>
+    </div>
+
+    <!-- Sound files -->
+    <audio id="treasureSound" src="https://www.soundjay.com/button/beep-07.wav" preload="auto"></audio>
+    <audio id="trapSound" src="https://www.soundjay.com/button/beep-05.wav" preload="auto"></audio>
+    <audio id="powerupSound" src="https://www.soundjay.com/button/beep-06.wav" preload="auto"></audio>
+    <audio id="gameOverSound" src="https://www.soundjay.com/button/beep-02.wav" preload="auto"></audio>
+    <audio id="winSound" src="https://www.soundjay.com/button/beep-01.wav" preload="auto"></audio>
+
+    <script>
+        const treasuresEl = document.getElementById('treasures');
+        const trapsEl = document.getElementById('traps');
+        const scoreEl = document.getElementById('score');
+        const gameMap = document.getElementById('gameMap');
+
+        let treasures = 0;
+        let traps = 0;
+        let score = 0;
+        const treasureGoal = 5; // Win condition
+        const trapLimit = 3; // Lose condition
+
+        // Get the sound elements
+        const treasureSound = document.getElementById('treasureSound');
+        const trapSound = document.getElementById('trapSound');
+        const powerupSound = document.getElementById('powerupSound');
+        const gameOverSound = document.getElementById('gameOverSound');
+        const winSound = document.getElementById('winSound');
+
+        // Initialize the game map
+        function initGameMap() {
+            for (let i = 0; i < 36; i++) {
+                const tile = document.createElement('div');
+                tile.classList.add('tile');
+                const img = document.createElement('img');
+                tile.appendChild(img);
+
+                const chance = Math.random();
+                if (chance < 0.2) {
+                    tile.dataset.type = 'treasure'; // 20% chance of treasure
+                    img.src = 'https://via.placeholder.com/40?text=T';
+                } else if (chance < 0.3) {
+                    tile.dataset.type = 'trap'; // 10% chance of trap
+                    img.src = 'https://via.placeholder.com/40?text=Trap';
+                } else if (chance < 0.35) {
+                    tile.dataset.type = 'powerup'; // 5% chance of power-up
+                    img.src = 'https://via.placeholder.com/40?text=P';
+                } else {
+                    tile.dataset.type = 'empty'; // 65% chance of empty
+                }
+
+                tile.addEventListener('click', () => exploreTile(tile));
+                gameMap.appendChild(tile);
+            }
+        }
+
+        // Explore a tile
+        function exploreTile(tile) {
+            if (tile.dataset.explored) {
+                alert('This tile has already been explored!');
+                return;
+            }
+
+            tile.dataset.explored = true;
+            const img = tile.querySelector('img');
+            img.style.display = 'block';
+
+            if (tile.dataset.type === 'treasure') {
+                treasures++;
+                score += 10;
+                treasuresEl.textContent = treasures;
+                scoreEl.textContent = score;
+                treasureSound.play(); // Play treasure sound
+                alert('You found a treasure!');
+            } else if (tile.dataset.type === 'trap') {
+                traps++;
+                score -= 5;
+                trapsEl.textContent = traps;
+                scoreEl.textContent = score;
+                trapSound.play(); // Play trap sound
+                alert('You triggered a trap!');
+            } else if (tile.dataset.type === 'powerup') {
+                revealAdjacentTiles(tile);
+                powerupSound.play(); // Play power-up sound
+                alert('Power-up activated! Adjacent tiles revealed.');
+            } else {
+                alert('This tile is empty.');
+            }
+
+            tile.style.backgroundColor = '#d3d3d3';
+            tile.style.cursor = 'not-allowed';
+
+            checkGameStatus();
+        }
+
+        // Reveal adjacent tiles
+        function revealAdjacentTiles(tile) {
+            const tileIndex = Array.from(gameMap.children).indexOf(tile);
+            const adjacentIndices = [
+                tileIndex - 1,
+                tileIndex + 1,
+                tileIndex - 6,
+                tileIndex + 6,
+            ];
+
+            adjacentIndices.forEach((index) => {
+                if (index >= 0 && index < 36) {
+                    const adjacentTile = gameMap.children[index];
+                    if (!adjacentTile.dataset.explored) {
+                        exploreTile(adjacentTile);
+                    }
+                }
+            });
+        }
+
+        // Check if the game is won or lost
+        function checkGameStatus() {
+            if (treasures >= treasureGoal) {
+                winSound.play(); // Play win sound
+                alert(`Congratulations! You found ${treasures} treasures and won the game!`);
+                resetGame();
+            } else if (traps >= trapLimit) {
+                gameOverSound.play(); // Play game over sound
+                alert('Game Over! You triggered too many traps.');
+                resetGame();
+            }
+        }
+
+        // Reset the game
+        function resetGame() {
+            treasures = 0;
+            traps = 0;
+            score = 0;
+            treasuresEl.textContent = treasures;
+            trapsEl.textContent = traps;
+            scoreEl.textContent = score;
+            gameMap.innerHTML = '';
+            initGameMap();
+        }
+
+        // Initialize the game
+        initGameMap();
+    </script>
+</body>
+</html>
